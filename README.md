@@ -21,28 +21,33 @@ pip install llpsdk
 ## Quick Start
 
 ```python
-import asyncio
+import asyncio, os
 import llpsdk as llp
 
-async def main() -> None:
-    """Run a simple agent that connects and replies to prompts."""
-    api_key = os.getenv("LLP_API_KEY")
-    client = llp.Client("simple-agent", api_key, llp.Config())
+# Define a callback handler for processing messages
+async def on_message(msg):
+    # Process the prompt with your agent.
+    # Replace this with your own processing logic.
+    response = msg.prompt
 
-    # Set up handlers
-    async def on_message(msg: llp.TextMessage) -> llp.TextMessage:
-        print("Feed msg.prompt into your agent and return the response.")
-        return msg.reply("this is my response")
+    # You must return a response
+    return msg.reply(response)
+
+async def main():
+    # Initialize the client
+    client = llp.Client(
+        os.getenv("LLP_AGENT_NAME"),
+        os.getenv("LLP_API_KEY"),
+    )
 
     # Register your message handler
     client.on_message(on_message)
 
     try:
+        # Connect and keep the client running
         await client.connect()
-
         print("Agent connected. Press Ctrl+C to exit...")
         await asyncio.Event().wait()
-
     finally:
         await client.close()
 

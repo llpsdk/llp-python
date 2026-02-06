@@ -2,7 +2,6 @@
 
 import base64
 import json
-from pydoc import text
 import pytest
 
 from llpsdk.errors import TextMessageEmptyError

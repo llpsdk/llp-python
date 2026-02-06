@@ -2,6 +2,7 @@
 
 import base64
 import json
+from pydoc import text
 import pytest
 
 from llpsdk.errors import TextMessageEmptyError
@@ -74,6 +75,7 @@ def test_text_message_decode():
     assert text_msg.recipient == "bob"
     assert text_msg.prompt == "Test message"
     assert text_msg.encrypted is False
+    assert text_msg.has_attachment() is False
 
 
 def test_authenticated_response_decode():
@@ -118,3 +120,20 @@ def test_text_message_empty_prompt():
     with pytest.raises(TextMessageEmptyError):
         msg = TextMessage("bob", "")
         msg.encode()
+
+def test_message_has_attachment():
+    json_msg = {
+        "type": "message",
+        "id": "msg-2",
+        "from": "alice",
+        "data": {
+            "to" : "bob",
+            "prompt": "",
+            "encrypted": False,
+            "attachment_url": "https://llphq.com/api/v1/attachment/hello.txt",
+        }
+    }
+
+    text_msg = TextMessage.decode(json_msg)
+    assert text_msg.has_attachment()
+    assert text_msg.attachment == "https://llphq.com/api/v1/attachment/hello.txt"

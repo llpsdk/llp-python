@@ -18,6 +18,7 @@ class TextMessage:
     recipient: str = ""
     prompt: str = ""  # Decoded string
     encrypted: bool = False
+    attachment: str = ""
 
     def __init__(self, recipient: str, prompt: str) -> None:
         self.recipient = recipient
@@ -53,6 +54,9 @@ class TextMessage:
         }
         return json.dumps(data)
 
+    def has_attachment(self) -> bool:
+        return self.attachment != ""
+
     @staticmethod
     def decode(msg: Dict[str, Any]) -> "TextMessage":
         """Decodes a JSON dict into a TextMessage object"""
@@ -61,6 +65,7 @@ class TextMessage:
         t._id = msg["id"]
         t.sender = msg["from"]
         t.encrypted = msg["data"]["encrypted"]
+        t.attachment = msg["data"].get("attachment_url", "")
         return t
 
 

@@ -11,12 +11,14 @@ from .errors import (
     PlatformError,
     TimeoutError,
 )
+from .handler import Annotater
 from .message import (
     AuthenticatedResponse,
     PresenceMessage,
     TextMessage,
 )
 from .presence import ConnectionStatus, PresenceStatus
+from .tool_call import ToolCall
 
 __all__ = [
     "Client",
@@ -33,6 +35,8 @@ __all__ = [
     "AlreadyClosedError",
     "TimeoutError",
     "InvalidStatusError",
+    "Annotater",
+    "ToolCall",
 ]
 
 __version__ = "0.1.0"

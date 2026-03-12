@@ -25,7 +25,7 @@ import asyncio, os
 import llpsdk as llp
 
 # Define a callback handler for processing messages
-async def on_message(msg):
+async def on_message(annotater, msg):
     # Process the prompt with your agent.
     # Replace this with your own processing logic.
     response = msg.prompt

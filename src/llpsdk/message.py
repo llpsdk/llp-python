@@ -4,10 +4,12 @@ import base64
 import uuid
 import json
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any, Dict, Optional
 
 from llpsdk.errors import TextMessageEmptyError
 from llpsdk.presence import PresenceStatus
+from llpsdk.tool_call import ToolCall
 
 
 class TextMessage:
@@ -56,6 +58,32 @@ class TextMessage:
 
     def has_attachment(self) -> bool:
         return self.attachment != ""
+
+    def tool_call(self, name: str, parameters: str, result: str, duration: timedelta) -> ToolCall:
+        """Create a successful ToolCall annotation from this message."""
+        return ToolCall(
+            id=self._id,
+            recipient=self.sender,
+            name=name,
+            parameters=parameters,
+            result=result,
+            threw_exception=False,
+            duration=duration,
+        )
+
+    def tool_call_exception(
+        self, name: str, parameters: str, error: Exception, duration: timedelta
+    ) -> ToolCall:
+        """Create a failed ToolCall annotation from this message."""
+        return ToolCall(
+            id=self._id,
+            recipient=self.sender,
+            name=name,
+            parameters=parameters,
+            result=str(error),
+            threw_exception=True,
+            duration=duration,
+        )
 
     @staticmethod
     def decode(msg: Dict[str, Any]) -> "TextMessage":

@@ -23,6 +23,7 @@ from .message import (
     PresenceMessage,
     TextMessage,
 )
+from .tool_call import ToolCall
 from .presence import ConnectionStatus, PresenceStatus
 
 
@@ -63,10 +64,6 @@ class Client:
         self._read_task: Optional[asyncio.Task[None]] = None
         self._write_task: Optional[asyncio.Task[None]] = None
         self._stop_event = asyncio.Event()
-
-        # Pending messages (for request/response)
-        self._pending_lock = asyncio.Lock()
-        self._pending: Dict[str, asyncio.Future[TextMessage]] = {}
 
         # Auth future (for waiting on authentication)
         self._auth_future: Optional[asyncio.Future[AuthenticatedResponse]] = None
@@ -170,7 +167,7 @@ class Client:
         async with self._presence_lock:
             self._presence = PresenceStatus.unavailable
 
-    async def send_async_message(self, message: TextMessage) -> None:
+    async def _send_async_message(self, message: TextMessage) -> None:
         """
         Send a message asynchronously (fire-and-forget).
 
@@ -187,50 +184,22 @@ class Client:
 
         await self._send(message.encode())
 
-    async def send_message(self, message: TextMessage, timeout: float = 10.0) -> TextMessage:
+    async def annotate_tool_call(self, tool_call: ToolCall) -> None:
         """
-        Send a message and wait for response.
+        Send a tool call annotation to the platform for telemetry.
 
         Args:
-            message: Message to send
-            timeout: Response timeout in seconds
-
-        Returns:
-            Response message
+            tool_call: The tool call to annotate (created via TextMessage.tool_call() or
+                       TextMessage.tool_call_exception())
 
         Raises:
-            ValueError: If message ID is empty
             NotAuthenticatedError: If not authenticated
-            TimeoutError: If no response within timeout
         """
-        # ID is REQUIRED for synchronous send
-        if not message._id:
-            raise ValueError("Message ID is required for send_message()")
-
         async with self._status_lock:
             if self._status != ConnectionStatus.AUTHENTICATED:
-                raise NotAuthenticatedError("Must connect before sending messages")
+                raise NotAuthenticatedError("Must connect before annotating tool calls")
 
-        # Create future for this message
-        response_future: asyncio.Future[TextMessage] = asyncio.get_event_loop().create_future()
-
-        async with self._pending_lock:
-            self._pending[message._id] = response_future
-
-        try:
-            # Send message asynchronously
-            await self.send_async_message(message)
-
-            # Wait for response with timeout
-            response = await asyncio.wait_for(response_future, timeout=timeout)
-            return response
-
-        except asyncio.TimeoutError:
-            raise TimeoutError(f"No response within {timeout}s")
-        finally:
-            # Clean up
-            async with self._pending_lock:
-                self._pending.pop(message._id, None)
+        await self._send(tool_call.encode())
 
     # Properties
 
@@ -415,15 +384,9 @@ class Client:
                 self._auth_future.set_exception(error)
                 return
 
-            # Check if this error is for a pending message
-            if error.id:
-                async with self._pending_lock:
-                    if error.id in self._pending:
-                        future = self._pending.pop(error.id)
-                        if not future.done():
-                            future.set_exception(error)
-                        return
+            return
 
+        if msg_type == "ack":
             return
 
         if msg_type == "authenticated":
@@ -438,21 +401,10 @@ class Client:
             return
 
         if msg_type == "message":
-            msg_id = msg_dict.get("id", "")
-
-            async with self._pending_lock:
-                if msg_id in self._pending:
-                    future = self._pending[msg_id]
-                    if not future.done():
-                        tm = TextMessage.decode(msg_dict)
-                        future.set_result(tm)
-                    return
-
-            # Not a response, call message handler
             tm = TextMessage.decode(msg_dict)
-            reply = await self._handlers.call_message(tm)
+            reply = await self._handlers.call_message(self, tm)
             if reply is not None:
-                await self.send_async_message(reply)
+                await self._send_async_message(reply)
             return
 
     async def _handle_disconnect(self) -> None:

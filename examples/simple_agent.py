@@ -1,5 +1,6 @@
 """Agent example demonstrating basic LLP SDK usage."""
 import asyncio
+from datetime import timedelta
 import llpsdk as llp
 import os
 from dotenv import load_dotenv
@@ -9,16 +10,22 @@ async def main() -> None:
     """Run a simple agent that connects, sends presence, and sends a message."""
     load_dotenv()
     platform_url = os.getenv("LLP_URL")
+    api_key = os.getenv("LLP_API_KEY")
+
     if platform_url is None:
         raise Exception("LLP_URL env var is not defined")
 
-    cfg = llp.Config()
+    if api_key is None:
+        raise Exception("LLP_API_KEY env var is not defined")
+
+    cfg = llp.Config(platform_url=platform_url)
     cfg.platform_url = platform_url
-    client = llp.Client("simple-agent", "testkey", cfg)
+    client = llp.Client("simple-agent", api_key, cfg)
 
     # Set up handlers
-    async def on_message(msg: llp.TextMessage) -> llp.TextMessage:
-        print("Feed msg.prompt into your agent and return the response.")
+    async def on_message(annotater: llp.Annotater, msg: llp.TextMessage) -> llp.TextMessage:
+        tc = msg.tool_call("get_weather", '{"city":"Seattle"}', "rainy", timedelta(seconds=1))
+        await annotater.annotate_tool_call(tc)
         return msg.reply("this is my response")
 
     # Register handlers
@@ -29,11 +36,6 @@ async def main() -> None:
         print("Connecting to server...")
         await client.connect()
         print(f"Connected! Session ID: {client.session_id}")
-
-        # Send a message
-        msg = llp.TextMessage(recipient="echo-agent", prompt="Hello from Python!")
-        print(f"Sending message to {msg.recipient}...")
-        await client.send_message(msg)
 
         # Keep running
         print("Agent running. Press Ctrl+C to exit...")

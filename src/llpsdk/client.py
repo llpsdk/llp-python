@@ -16,7 +16,7 @@ from .errors import (
     NotAuthenticatedError,
     PlatformError,
 )
-from .handler import HandlerRegistry, MessageHandler, PresenceHandler
+from .handler import HandlerRegistry, MessageHandler, PresenceHandler, StartHandler
 from .message import (
     AuthenticatedResponse,
     AuthenticateMessage,
@@ -55,6 +55,7 @@ class Client:
         self._status_lock = asyncio.Lock()
         self._presence = PresenceStatus.unavailable
         self._presence_lock = asyncio.Lock()
+        self._agents: Dict[str, Any] = dict()
 
         # Message handling
         self._handlers = HandlerRegistry()
@@ -218,7 +219,24 @@ class Client:
         """Get the current presence status."""
         return self._presence
 
-    # Event handlers (fluent API)
+    # Event handlers
+
+    def on_start(self, handler: StartHandler) -> None:
+        """
+        Set the start event handler. This is an initializer function for when
+        a test agent comes online.
+
+        Args:
+            handler: Callable for initializing agents that come online.
+
+        Raises:
+            LLPClientError: If client is already connected
+
+        """
+        if self._status >= ConnectionStatus.CONNECTING.value:
+            raise LLPClientError("on_start can not be called once client is connected.")
+
+        self._handlers.set_start(handler)
 
     def on_presence(self, handler: PresenceHandler) -> None:
         """
@@ -227,8 +245,8 @@ class Client:
         Args:
             handler: Callable to handle presence updates
 
-        Returns:
-            Self for fluent chaining
+        Raises:
+            LLPClientError: If client is already connected
         """
         if self._status >= ConnectionStatus.CONNECTING.value:
             raise LLPClientError("on_presence can not be called once client is connected.")
@@ -242,8 +260,8 @@ class Client:
         Args:
             handler: Callable to handle incoming messages
 
-        Returns:
-            Self for fluent chaining
+        Raises:
+            LLPClientError: If client is already connected
         """
         if self._status >= ConnectionStatus.CONNECTING.value:
             raise LLPClientError("on_message can not be called once client is connected.")
@@ -398,11 +416,21 @@ class Client:
         if msg_type == "presence":
             update = PresenceMessage.decode(msg_dict)
             await self._handlers.call_presence(update)
+            if update.status == PresenceStatus.available:
+                agent = self._handlers.call_start()
+                if agent is not None:
+                    self._agents[update.sender] = agent
+
+            if update.status == PresenceStatus.unavailable:
+                # TODO: invoke a "stop" handler for uninitializing
+                del self._agents[update.sender]
+
             return
 
         if msg_type == "message":
             tm = TextMessage.decode(msg_dict)
-            reply = await self._handlers.call_message(self, tm)
+            agent = self._agents.get(tm.sender)
+            reply = await self._handlers.call_message(agent, self, tm)
             if reply is not None:
                 await self._send_async_message(reply)
             return

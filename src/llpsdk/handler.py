@@ -1,7 +1,7 @@
 """Event handler registry for the LLP client."""
 
 import asyncio
-from typing import Awaitable, Callable, Optional, Union
+from typing import Awaitable, Callable, Optional, Union, Any
 
 from typing import Protocol, runtime_checkable
 
@@ -20,7 +20,8 @@ class Annotater(Protocol):
 PresenceHandler = Union[
     Callable[[PresenceMessage], None], Callable[[PresenceMessage], Awaitable[None]]
 ]
-MessageHandler = Callable[["Annotater", TextMessage], Awaitable[TextMessage]]
+MessageHandler = Callable[[Any | None, "Annotater", TextMessage], Awaitable[TextMessage]]
+StartHandler = Callable[[], Any]
 
 
 class HandlerRegistry:
@@ -30,6 +31,11 @@ class HandlerRegistry:
         """Initialize the handler registry."""
         self._on_presence: Optional[PresenceHandler] = None
         self._on_message: Optional[MessageHandler] = None
+        self._on_start: Optional[StartHandler] = None
+
+    def set_start(self, handler: StartHandler) -> None:
+        """Set the start event handler."""
+        self._on_start = handler
 
     def set_presence(self, handler: PresenceHandler) -> None:
         """Set the presence event handler."""
@@ -38,6 +44,17 @@ class HandlerRegistry:
     def set_message(self, handler: MessageHandler) -> None:
         """Set the message event handler."""
         self._on_message = handler
+
+    def call_start(self) -> Any | None:
+        """
+        Call the start handler if set.
+
+        Returns: If set, returns initial state (e.g. langchain agent instance).
+        """
+        if self._on_start is not None:
+            return self._on_start()
+        else:
+            return None
 
     async def call_presence(self, update: PresenceMessage) -> None:
         """Call the presence handler if set."""
@@ -48,10 +65,10 @@ class HandlerRegistry:
                 self._on_presence(update)
 
     async def call_message(
-        self, annotater: Annotater, message: TextMessage
+        self, agent: Any | None, annotater: Annotater, message: TextMessage
     ) -> Optional[TextMessage]:
         """Call the message handler if set, passing annotater for tool call telemetry."""
         if self._on_message is not None:
-            result = await self._on_message(annotater, message)
+            result = await self._on_message(agent, annotater, message)
             return result
         return None

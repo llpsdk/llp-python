@@ -23,12 +23,18 @@ pip install llpsdk
 ```python
 import asyncio, os
 import llpsdk as llp
+from my_agent import create_agent
+
+# called when starting a conversation with a test agent
+def on_start():
+    # create an instance of your agent
+    return create_agent()
 
 # Define a callback handler for processing messages
-async def on_message(annotater, msg):
+async def on_message(agent, annotater, msg):
     # Process the prompt with your agent.
     # Replace this with your own processing logic.
-    response = msg.prompt
+    response = await agent.ainvoke(msg.prompt)
 
     # You must return a response
     return msg.reply(response)
@@ -41,6 +47,7 @@ async def main():
     )
 
     # Register your message handler
+    client.on_start(on_start)
     client.on_message(on_message)
 
     try:

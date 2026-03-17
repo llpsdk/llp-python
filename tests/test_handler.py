@@ -34,40 +34,17 @@ async def test_async_message_handler():
     assert len(calls) == 1
     assert calls[0] == ("async", "World")
 
-
-@pytest.mark.asyncio
-async def test_sync_presence_handler():
-    """Test that sync presence handlers are called correctly."""
+def test_start_handler():
     registry = HandlerRegistry()
-    calls = []
 
-    def handler(update: PresenceMessage) -> None:
-        calls.append((update.sender, update.status))
+    def start_handler():
+        return "foo"
 
-    registry.set_presence(handler)
-    update = PresenceMessage(sender="alice", status=PresenceStatus.available)
-    await registry.call_presence(update)
+    registry.set_start(start_handler)
+    result = registry.call_start()
 
-    assert len(calls) == 1
-    assert calls[0] == ("alice", PresenceStatus.available)
-
-
-@pytest.mark.asyncio
-async def test_async_presence_handler():
-    """Test that async presence handlers are called correctly."""
-    registry = HandlerRegistry()
-    calls = []
-
-    async def handler(update: PresenceMessage) -> None:
-        calls.append((update.sender, update.status))
-
-    registry.set_presence(handler)
-    update = PresenceMessage(sender="bob", status=PresenceStatus.unavailable)
-    await registry.call_presence(update)
-
-    assert len(calls) == 1
-    assert calls[0] == ("bob", PresenceStatus.unavailable)
-
+    assert result is not None
+    assert result == "foo"
 
 @pytest.mark.asyncio
 async def test_no_handler_set():
@@ -76,7 +53,7 @@ async def test_no_handler_set():
 
     # Should not raise
     await registry.call_message(None, _annotater, TextMessage("alice", "test"))
-    await registry.call_presence(PresenceMessage(sender="alice", status=PresenceStatus.available))
+    registry.call_start()
 
 
 @pytest.mark.asyncio

@@ -26,11 +26,6 @@ def get_weather(city: str) -> str:
     }
     return weather_data.get(city_lower, f"No weather data available for {city}")
 
-@tool
-def get_capabilities() -> str:
-    """Describe your capabilities and skills when prompted."""
-    return "I'm a helpful meteorologist that can provide you weather for various cities in America."
-
 async def main() -> None:
     """Run a simple agent that connects, sends presence, and sends a message."""
     load_dotenv()
@@ -60,7 +55,7 @@ async def main() -> None:
         )
         return create_agent(
             model=model,
-            tools=[get_weather, get_capabilities],
+            tools=[get_weather],
             middleware=[LLPAnnotationMiddleware()],
             system_prompt="You are a helpful meteorologist that gives succinct responses regarding the weather for various American cities."
         )

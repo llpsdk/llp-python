@@ -1,6 +1,7 @@
 """Agent example demonstrating basic LLP SDK usage."""
 import asyncio
 from datetime import timedelta
+from typing import Any
 import llpsdk as llp
 import os
 from dotenv import load_dotenv
@@ -23,7 +24,7 @@ async def main() -> None:
     client = llp.Client("simple-agent", api_key, cfg)
 
     # Set up handlers
-    async def on_message(annotater: llp.Annotater, msg: llp.TextMessage) -> llp.TextMessage:
+    async def on_message(_agent: Any, annotater: llp.Annotater, msg: llp.TextMessage) -> llp.TextMessage:
         tc = msg.tool_call("get_weather", '{"city":"Seattle"}', "rainy", timedelta(seconds=1))
         await annotater.annotate_tool_call(tc)
         return msg.reply("this is my response")

@@ -20,13 +20,13 @@ class LLPAnnotationMiddleware(AgentMiddleware[LLPState]):
     state_schema = LLPState
 
     async def awrap_tool_call(
-        self, request: ToolCallRequest, handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]]
+        self,
+        request: ToolCallRequest,
+        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
         start = time.perf_counter()
         result = await handler(request)
         duration = time.perf_counter() - start
-        print("tool call made ", request.tool_call["name"])
-        print(type(result))
         tool_call = request.tool_call
         msg = request.state["message"]
         annotater = request.state["annotater"]

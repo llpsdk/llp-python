@@ -1,11 +1,10 @@
 """Event handler registry for the LLP client."""
 
-import asyncio
-from typing import Awaitable, Callable, Optional, Union, Any
+from typing import Awaitable, Callable, Optional, Any
 
 from typing import Protocol, runtime_checkable
 
-from .message import PresenceMessage, TextMessage
+from .message import TextMessage
 from .tool_call import ToolCall
 
 
@@ -17,9 +16,6 @@ class Annotater(Protocol):
 
 
 # Handler type signatures (supports both sync and async)
-PresenceHandler = Union[
-    Callable[[PresenceMessage], None], Callable[[PresenceMessage], Awaitable[None]]
-]
 MessageHandler = Callable[[Any | None, "Annotater", TextMessage], Awaitable[TextMessage]]
 StartHandler = Callable[[], Any]
 
@@ -29,17 +25,12 @@ class HandlerRegistry:
 
     def __init__(self) -> None:
         """Initialize the handler registry."""
-        self._on_presence: Optional[PresenceHandler] = None
         self._on_message: Optional[MessageHandler] = None
         self._on_start: Optional[StartHandler] = None
 
     def set_start(self, handler: StartHandler) -> None:
         """Set the start event handler."""
         self._on_start = handler
-
-    def set_presence(self, handler: PresenceHandler) -> None:
-        """Set the presence event handler."""
-        self._on_presence = handler
 
     def set_message(self, handler: MessageHandler) -> None:
         """Set the message event handler."""
@@ -55,14 +46,6 @@ class HandlerRegistry:
             return self._on_start()
         else:
             return None
-
-    async def call_presence(self, update: PresenceMessage) -> None:
-        """Call the presence handler if set."""
-        if self._on_presence is not None:
-            if asyncio.iscoroutinefunction(self._on_presence):
-                await self._on_presence(update)
-            else:
-                self._on_presence(update)
 
     async def call_message(
         self, agent: Any | None, annotater: Annotater, message: TextMessage

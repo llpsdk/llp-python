@@ -16,7 +16,7 @@ from .errors import (
     NotAuthenticatedError,
     PlatformError,
 )
-from .handler import HandlerRegistry, MessageHandler, PresenceHandler, StartHandler
+from .handler import HandlerRegistry, MessageHandler, StartHandler
 from .message import (
     AuthenticatedResponse,
     AuthenticateMessage,
@@ -238,21 +238,6 @@ class Client:
 
         self._handlers.set_start(handler)
 
-    def on_presence(self, handler: PresenceHandler) -> None:
-        """
-        Set the presence event handler.
-
-        Args:
-            handler: Callable to handle presence updates
-
-        Raises:
-            LLPClientError: If client is already connected
-        """
-        if self._status >= ConnectionStatus.CONNECTING.value:
-            raise LLPClientError("on_presence can not be called once client is connected.")
-
-        self._handlers.set_presence(handler)
-
     def on_message(self, handler: MessageHandler) -> None:
         """
         Set the message event handler.
@@ -415,7 +400,6 @@ class Client:
 
         if msg_type == "presence":
             update = PresenceMessage.decode(msg_dict)
-            await self._handlers.call_presence(update)
             if update.status == PresenceStatus.available:
                 agent = self._handlers.call_start()
                 if agent is not None:

@@ -138,14 +138,14 @@ async def test_message_handler_receives_annotater():
 
     annotater = FakeAnnotater()
 
-    async def handler(ann: Annotater, msg: TextMessage) -> TextMessage:
+    async def handler(agent: None, ann: Annotater, msg: TextMessage) -> TextMessage:
         received_annotater.append(ann)
         return msg.reply("ok")
 
     registry.set_message(handler)
     msg = TextMessage("alice", "hello")
     msg.sender = "bob"
-    await registry.call_message(annotater, msg)
+    await registry.call_message(None, annotater, msg)
 
     assert len(received_annotater) == 1
     assert received_annotater[0] is annotater
@@ -163,7 +163,7 @@ async def test_handler_can_annotate_tool_call():
 
     annotater = FakeAnnotater()
 
-    async def handler(ann: Annotater, msg: TextMessage) -> TextMessage:
+    async def handler(agent: None, ann: Annotater, msg: TextMessage) -> TextMessage:
         tc = msg.tool_call("lookup", "{}", "result", timedelta(milliseconds=50))
         await ann.annotate_tool_call(tc)
         return msg.reply("done")
@@ -172,7 +172,7 @@ async def test_handler_can_annotate_tool_call():
     msg = TextMessage("alice", "hello")
     msg._id = "msg-99"
     msg.sender = "bob"
-    await registry.call_message(annotater, msg)
+    await registry.call_message(None, annotater, msg)
 
     assert len(annotated) == 1
     assert annotated[0].name == "lookup"
@@ -185,5 +185,5 @@ async def test_no_message_handler_with_annotater():
     registry = HandlerRegistry()
     annotater = AsyncMock(spec=Annotater)
 
-    result = await registry.call_message(annotater, TextMessage("alice", "test"))
+    result = await registry.call_message(None, annotater, TextMessage("alice", "test"))
     assert result is None

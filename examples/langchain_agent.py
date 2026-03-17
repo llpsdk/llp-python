@@ -70,8 +70,6 @@ async def main() -> None:
                 }
             )
             reply = result["messages"][-1].content
-            # tc = msg.tool_call("get_weather", '{"city":"Seattle"}', "rainy", timedelta(seconds=1))
-            # await annotater.annotate_tool_call(tc)
             return msg.reply(reply)
         else:
             return msg.reply("I'm a helpful meteorologist!")

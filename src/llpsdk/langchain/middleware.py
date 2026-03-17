@@ -25,17 +25,27 @@ class LLPAnnotationMiddleware(AgentMiddleware[LLPState]):
         handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
         start = time.perf_counter()
-        result = await handler(request)
-        duration = time.perf_counter() - start
-        tool_call = request.tool_call
-        msg = request.state["message"]
-        annotater = request.state["annotater"]
-        content = result.content if isinstance(result, ToolMessage) else ""
-        annotation = msg.tool_call(
-            tool_call["name"],
-            json.dumps(tool_call["args"]),
-            content,
-            timedelta(seconds=duration),
-        )
-        await annotater.annotate_tool_call(annotation)
-        return result
+        try:
+            result = await handler(request)
+            duration = time.perf_counter() - start
+            tool_call = request.tool_call
+            msg = request.state["message"]
+            annotater = request.state["annotater"]
+            content = result.content if isinstance(result, ToolMessage) else ""
+            annotation = msg.tool_call(
+                tool_call["name"],
+                json.dumps(tool_call["args"]),
+                content,
+                timedelta(seconds=duration),
+            )
+            await annotater.annotate_tool_call(annotation)
+            return result
+        except Exception as e:
+            tool_call = request.tool_call
+            msg = request.state["message"]
+            annotater = request.state["annotater"]
+            duration = time.perf_counter() - start
+            msg.tool_call_exception(
+                tool_call["name"], json.dumps(tool_call["args"]), e, timedelta(seconds=duration)
+            )
+            raise e
